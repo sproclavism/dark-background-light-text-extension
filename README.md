@@ -25,6 +25,43 @@ https://addons.mozilla.org/firefox/addon/dark-background-light-text/
   off. Enable it under Options → *"Automatically enable/disable based on the
   browser/system theme"*.
 
+## Configuring pages
+
+You can override the recoloring method for specific pages, either from the
+toolbar popup or under Options → *Configured pages*.
+
+Matching is **not** wildcard/glob based — entries are matched against a
+hierarchy of keys derived from the page's URL, from most to least specific.
+For `https://foo.bar.example.com/a/b`, the extension checks (in order):
+
+```
+foo.bar.example.com/a/b
+foo.bar.example.com/a
+foo.bar.example.com
+bar.example.com
+example.com
+```
+
+The first configured entry that matches wins. A few consequences worth knowing:
+
+- **No asterisks.** `https://*.example.com` will *not* work — the `*` is treated
+  as a literal character and never matches.
+- **A registrable domain covers everything under it.** An entry for
+  `example.com` applies to every path *and* every subdomain
+  (`www.example.com`, `foo.bar.example.com`, …). This is how you configure many
+  subdomains at once — no wildcard needed.
+- **Be specific to narrow the scope.** Use `sub.example.com` for a single
+  subdomain, or `example.com/some/path` to target a path section.
+- **No scheme for http/https.** Keys are stored without the scheme
+  (`example.com`, not `https://example.com`). Other protocols such as `file://`
+  do include it.
+
+| You want | Entry to add |
+| -------- | ------------ |
+| A whole site + all subdomains + all paths | `example.com` |
+| One specific subdomain | `sub.example.com` |
+| Just a path section | `example.com/some/path` |
+
 ## Building from source
 
 Requirements: [Node.js](https://nodejs.org/) and npm.
