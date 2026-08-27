@@ -18,8 +18,9 @@ https://addons.mozilla.org/firefox/addon/dark-background-light-text/
   - **Invert** – inverts the whole page, including images and iframes.
   - **Disabled** – leaves a page untouched.
 - Per-tab and per-URL configuration from the toolbar popup.
-- Global and per-tab toggle keyboard shortcuts (default `F2` and
-  `Ctrl+Alt+D`).
+- Global, per-tab and per-site toggle keyboard shortcuts (defaults `F2`,
+  `Ctrl+Alt+D` and `Ctrl+Alt+S`). The per-site shortcut disables/re-enables the
+  whole site of the active tab (see *Configuring pages* below).
 - **Automatic theme switching** – optionally enable/disable the extension based
   on the browser/system theme: a dark theme turns it on, a light theme turns it
   off. Enable it under Options → *"Automatically enable/disable based on the

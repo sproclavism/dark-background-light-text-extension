@@ -35,6 +35,12 @@
         "default": "Ctrl+Alt+D"
       },
       "description": "Toggle enabled for current tab"
+    },
+    "site_toggle_hotkey": {
+      "suggested_key": {
+        "default": "Ctrl+Alt+S"
+      },
+      "description": "Toggle enabled for the site of the current tab"
     }
   },
   "browser_action": {

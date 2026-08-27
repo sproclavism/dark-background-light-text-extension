@@ -24,6 +24,7 @@ export interface AddonOptions {
   auto_switch_by_theme: boolean;
   global_toggle_hotkey: string;
   tab_toggle_hotkey: string;
+  site_toggle_hotkey: string;
   default_method: MethodIndex;
   default_foreground_color: string;
   default_background_color: string;

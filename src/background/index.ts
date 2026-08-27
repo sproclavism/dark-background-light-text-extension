@@ -1,4 +1,5 @@
 import { parseCSSColor } from 'csscolorparser-ts';
+import { parse as tldts_parse } from 'tldts';
 import type {
   Runtime,
   ContentScripts,
@@ -28,6 +29,28 @@ import { modify_cors, modify_csp, version_lt } from './lib';
 import * as base_style from '../methods/stylesheets/base';
 
 declare const browser: Browser;
+
+// Derive a "site" key from a tab URL, consistent with how configured_pages
+// entries are matched in the content script. For http(s) this is the
+// registrable domain (so all subdomains and paths of the site are covered),
+// falling back to the bare hostname when a registrable domain can't be
+// determined (IP addresses, single-label hosts like "localhost", etc.).
+function get_site_key(url_str: string): string | null {
+  try {
+    const url_obj = new URL(url_str);
+    if (url_obj.protocol === 'http:' || url_obj.protocol === 'https:') {
+      const parsed = tldts_parse(url_obj.hostname, {
+        detectIp: false,
+        extractHostname: false,
+      });
+      return parsed.domain ?? url_obj.hostname;
+    }
+    return url_obj.hostname || null;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
 
 const platform_info: Promise<Runtime.PlatformInfo> =
   'getPlatformInfo' in browser.runtime
@@ -308,6 +331,41 @@ if (Object.prototype.hasOwnProperty.call(browser, 'commands')) {
           }
           send_prefs({});
           break;
+        case 'site_toggle_hotkey': {
+          [current_tab] = await browser.tabs.query({
+            currentWindow: true,
+            active: true,
+          });
+          const site_key = current_tab.url
+            ? get_site_key(current_tab.url)
+            : null;
+          if (!site_key) {
+            console.warn(
+              'site_toggle_hotkey: could not determine a site for',
+              current_tab.url,
+            );
+            break;
+          }
+          if (current_tab.incognito) {
+            // don't persist configuration for private tabs
+            if (configured_private[site_key] === '0') {
+              delete configured_private[site_key];
+            } else {
+              configured_private[site_key] = '0';
+            }
+            send_prefs({});
+          } else {
+            const configured_pages = await get_prefs('configured_pages');
+            if (configured_pages[site_key] === '0') {
+              delete configured_pages[site_key];
+            } else {
+              configured_pages[site_key] = '0';
+            }
+            // set_pref triggers on_prefs_change, which re-injects the scripts
+            await set_pref('configured_pages', configured_pages);
+          }
+          break;
+        }
         default:
           console.error('bad command');
           break;
