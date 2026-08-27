@@ -1,6 +1,8 @@
 {
   "scripts": {
     "build": "rollup -c --failAfterWarnings",
+    "package": "npm run build && web-ext build --source-dir dist --overwrite-dest",
+    "sign": "npm run build && web-ext sign --source-dir dist --channel unlisted",
     "test": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' nyc --reporter='../../coverage-relative-json-summary' --reporter=html --reporter=text mocha"
   },
   "devDependencies": {
@@ -36,7 +38,8 @@
     "svelte-preprocess": "^5.0.0",
     "ts-loader": "^9.4.2",
     "ts-node": "^10.9.1",
-    "typescript": "^4.9.4"
+    "typescript": "^4.9.4",
+    "web-ext": "^10.6.0"
   },
   "dependencies": {
     "await-lock": "^2.2.2",

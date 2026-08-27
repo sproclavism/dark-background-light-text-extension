@@ -75,11 +75,55 @@ npm run build     # produce the unpacked extension in dist/
 The build output is written to `dist/` (override with the `ADDON_DIST_DIR`
 environment variable).
 
-### Loading it in Firefox
+### Loading it temporarily (for development)
 
 1. Run `npm run build`.
 2. Open `about:debugging` → *This Firefox* → *Load Temporary Add-on…*.
 3. Select `dist/manifest.json`.
+
+Temporary add-ons are removed when Firefox restarts. To install it permanently,
+package and sign it as described below.
+
+## Packaging
+
+Build an installable package (a zip of the extension) with:
+
+```sh
+npm run package
+```
+
+This produces `web-ext-artifacts/dark_background_and_light_text-<version>.zip`.
+That archive is a complete add-on package, but **release versions of Firefox
+only install signed extensions permanently**, so it must be signed first (see
+below) or submitted to [AMO](https://addons.mozilla.org/developers/).
+
+### Installing it permanently (signing)
+
+To use it like any normal add-on, sign it through Mozilla's servers. This
+requires a (free) [Firefox Add-ons](https://addons.mozilla.org/) account and
+[API credentials](https://addons.mozilla.org/developers/addon/api/key/).
+
+> **Note:** self-signing requires an extension ID that belongs to your own AMO
+> account. If signing fails with an ID conflict, change
+> `applications.gecko.id` in `manifest.json` to your own unique value (for
+> example `dark-light@yourname`).
+
+Then sign for self-distribution (the *unlisted* channel):
+
+```sh
+WEB_EXT_API_KEY=<your-jwt-issuer> \
+WEB_EXT_API_SECRET=<your-jwt-secret> \
+npm run sign
+```
+
+On success a signed `.xpi` is written to `web-ext-artifacts/`. Install it in
+Firefox via *Menu → Add-ons and themes → gear icon → Install Add-on From
+File…* (or by opening the `.xpi` in Firefox). It now stays installed across
+restarts.
+
+> **Tip:** if you only use Firefox Developer Edition, Nightly or ESR, you can
+> instead set `xpinstall.signatures.required` to `false` in `about:config` and
+> install the unsigned `.zip`/`.xpi` from `npm run package` directly.
 
 ## Development
 
