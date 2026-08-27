@@ -104,6 +104,7 @@ declare const browser: Browser;
   }
   const isPrivate = current_tab.incognito;
   const enabled = await get_prefs('enabled');
+  const auto_switch_by_theme = await get_prefs('auto_switch_by_theme');
   const body = document.querySelector('body')!;
   if ((await browser.runtime.getPlatformInfo()).os === 'android') {
     body.setAttribute('class', 'touchscreen');
@@ -185,11 +186,29 @@ declare const browser: Browser;
   const checkbox = document.createElement('input');
   checkbox.setAttribute('type', 'checkbox');
   checkbox.checked = enabled;
+  // When following the theme, the enabled state is managed automatically.
+  checkbox.disabled = auto_switch_by_theme;
+  if (auto_switch_by_theme) {
+    checkbox_label.title =
+      'Controlled automatically by the browser/system theme';
+  }
   checkbox.onchange = () => {
     set_pref('enabled', checkbox.checked).then(() => close());
   };
   checkbox_label.appendChild(checkbox);
   body.appendChild(checkbox_label);
+
+  const auto_label = document.createElement('label');
+  auto_label.setAttribute('class', 'enabled_label');
+  auto_label.textContent = 'Automatically follow theme';
+  const auto_checkbox = document.createElement('input');
+  auto_checkbox.setAttribute('type', 'checkbox');
+  auto_checkbox.checked = auto_switch_by_theme;
+  auto_checkbox.onchange = () => {
+    set_pref('auto_switch_by_theme', auto_checkbox.checked).then(() => close());
+  };
+  auto_label.appendChild(auto_checkbox);
+  body.appendChild(auto_label);
 
   body.appendChild(document.createElement('hr'));
 
