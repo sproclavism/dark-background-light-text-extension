@@ -21,6 +21,13 @@ export const preferences: Preferences = [
     title: 'Enabled',
   } as BoolPreference,
   {
+    type: 'bool',
+    name: 'auto_switch_by_theme',
+    value: false,
+    title:
+      'Automatically enable/disable based on the browser/system theme (dark theme enables, light theme disables)',
+  } as BoolPreference,
+  {
     title: 'Default method of changing page colors',
     value: 1,
     type: 'menulist',
@@ -95,6 +102,7 @@ export const prefs_keys_with_defaults = ((): PrefsWithValues => {
 
 export function get_prefs(prefs?: string[]): Promise<PrefsWithValues>;
 export function get_prefs(prefs: 'enabled'): Promise<boolean>;
+export function get_prefs(prefs: 'auto_switch_by_theme'): Promise<boolean>;
 export function get_prefs(prefs: 'configured_pages'): Promise<ConfiguredPages>;
 export function get_prefs(prefs: 'default_method'): Promise<MethodIndex>;
 export function get_prefs(

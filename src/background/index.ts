@@ -256,6 +256,33 @@ async function send_prefs(changes: { [s: string]: Storage.StorageChange }) {
 send_prefs({});
 on_prefs_change(send_prefs);
 
+// Automatically toggle the global "enabled" preference to follow the
+// browser/system theme when the user opts in via "auto_switch_by_theme".
+const dark_theme_media_query = window.matchMedia(
+  '(prefers-color-scheme: dark)',
+);
+async function apply_auto_switch_by_theme() {
+  if (!(await get_prefs('auto_switch_by_theme'))) {
+    return;
+  }
+  const should_be_enabled = dark_theme_media_query.matches;
+  if ((await get_prefs('enabled')) !== should_be_enabled) {
+    await set_pref('enabled', should_be_enabled);
+  }
+}
+dark_theme_media_query.addEventListener('change', () => {
+  apply_auto_switch_by_theme().catch((e) => console.error(e));
+});
+on_prefs_change((changes) => {
+  if (
+    Object.prototype.hasOwnProperty.call(changes, 'auto_switch_by_theme')
+    && changes.auto_switch_by_theme.newValue
+  ) {
+    apply_auto_switch_by_theme().catch((e) => console.error(e));
+  }
+});
+apply_auto_switch_by_theme().catch((e) => console.error(e));
+
 if (Object.prototype.hasOwnProperty.call(browser, 'commands')) {
   browser.commands.onCommand.addListener(async (name) => {
     try {
@@ -338,17 +365,13 @@ function is_probably_service_worker(
   }
   const origin_url = new URL(details.originUrl);
   // likely a request from Service Worker
-  if (
-    details.type === 'xmlhttprequest'
+  return details.type === 'xmlhttprequest'
     && details.tabId === -1
     && (origin_url.protocol === 'https:'
       || origin_url.hostname === 'localhost'
       || origin_url.hostname === '127.0.0.1'
-      || origin_url.hostname === '[::1]')
-  ) {
-    return true;
-  }
-  return false;
+      || origin_url.hostname === '[::1]');
+
 }
 
 function get_content_type(

@@ -21,6 +21,7 @@ export interface ConfiguredTabs {
 }
 export interface AddonOptions {
   enabled: boolean;
+  auto_switch_by_theme: boolean;
   global_toggle_hotkey: string;
   tab_toggle_hotkey: string;
   default_method: MethodIndex;
