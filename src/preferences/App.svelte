@@ -12,7 +12,13 @@
     on_prefs_change,
     prefs_keys_with_defaults,
     set_pref,
+    set_prefs,
   } from '../common/shared';
+  import {
+    parse_settings,
+    serialize_settings,
+    settings_file_name,
+  } from '../common/settings-transfer';
   import { methods } from '../methods/methods';
   import type { Browser } from 'webextension-polyfill';
   export let browser: Browser;
@@ -84,6 +90,56 @@
     }
     set_page_method(url, new_page_method);
     new_page_url = '';
+  }
+
+  let import_input: HTMLInputElement;
+  let transfer_status: { kind: 'success' | 'error'; text: string } | null =
+    null;
+
+  async function export_settings() {
+    const now = new Date();
+    const blob = new Blob([serialize_settings(await get_prefs(), now)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = settings_file_name(now);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Revoking synchronously can cancel the download before it starts.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    transfer_status = { kind: 'success', text: 'Settings exported.' };
+  }
+
+  async function import_settings(file: File) {
+    let parsed;
+    try {
+      parsed = parse_settings(await file.text(), preferences);
+    } catch (error) {
+      transfer_status = {
+        kind: 'error',
+        text: `Import failed: ${(error as Error).message}`,
+      };
+      return;
+    }
+    if (
+      !window.confirm(
+        'Importing will overwrite your current settings and configured pages. Continue?',
+      )
+    ) {
+      transfer_status = null;
+      return;
+    }
+    await set_prefs(parsed.preferences);
+    transfer_status = {
+      kind: 'success',
+      text:
+        parsed.ignored_keys.length > 0
+          ? `Settings imported. Ignored unknown settings: ${parsed.ignored_keys.join(', ')}.`
+          : 'Settings imported.',
+    };
   }
 </script>
 
@@ -222,7 +278,72 @@
       <div class="col-xs-12">There is no single configured page</div>
     </div>
   {/each}
+
+  <div class="row">
+    <div class="col-xs-12"><h2>Import / export settings</h2></div>
+  </div>
+  <div class="row">
+    <div class="col-xs-12">
+      Save all of your settings (options, colors and configured pages) to a
+      file, or restore them from a previously exported file.
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-xs-12 col-sm-6 col-md-3">
+      <button
+        on:click={() =>
+          export_settings().catch((error) => {
+            console.error(error);
+            transfer_status = {
+              kind: 'error',
+              text: `Export failed: ${(error as Error).message}`,
+            };
+          })}
+        class="btn btn-default full-width">Export settings</button
+      >
+    </div>
+    <div class="col-xs-12 col-sm-6 col-md-3">
+      <button
+        on:click={() => import_input.click()}
+        class="btn btn-default full-width">Import settings</button
+      >
+      <input
+        bind:this={import_input}
+        on:change={(e) => {
+          const file = e.currentTarget.files?.[0];
+          // Allow re-selecting the same file later.
+          e.currentTarget.value = '';
+          if (file) {
+            import_settings(file).catch((error) => {
+              console.error(error);
+              transfer_status = {
+                kind: 'error',
+                text: `Import failed: ${(error as Error).message}`,
+              };
+            });
+          }
+        }}
+        type="file"
+        accept="application/json,.json"
+        hidden
+      />
+    </div>
+  </div>
+  {#if transfer_status}
+    <div class="row">
+      <div
+        class="col-xs-12 transfer_status"
+        class:transfer_error={transfer_status.kind === 'error'}
+        role="status"
+      >
+        {transfer_status.text}
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
+  .transfer_error {
+    color: red;
+  }
 </style>

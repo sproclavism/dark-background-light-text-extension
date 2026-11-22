@@ -147,6 +147,24 @@ export function set_pref(pref: string, value: PrefsType): Promise<void> {
   }
 }
 
+export async function set_prefs(values: PrefsWithValues): Promise<void> {
+  const to_set: PrefsWithValues = {};
+  const to_remove: string[] = [];
+  for (const [pref, value] of Object.entries(values)) {
+    if (prefs_keys_with_defaults[pref] === value) {
+      to_remove.push(pref);
+    } else {
+      to_set[pref] = value;
+    }
+  }
+  if (to_remove.length > 0) {
+    await browser.storage.local.remove(to_remove);
+  }
+  if (Object.keys(to_set).length > 0) {
+    await browser.storage.local.set(to_set);
+  }
+}
+
 export function on_prefs_change(
   callback: (changes: { [s: string]: Storage.StorageChange }) => void,
 ) {
