@@ -8,6 +8,8 @@ import type {
   MenuListPreference,
   ColorPreference,
   ConfiguredPagesPreference,
+  Message,
+  MessageResponse,
 } from './types';
 import { methods } from '../methods/methods';
 
@@ -112,7 +114,7 @@ export function get_prefs(prefs: string): Promise<PrefsType>;
 export async function get_prefs(
   prefs?: string | string[],
 ): Promise<PrefsType | PrefsWithValues> {
-  let query: PrefsWithValues = {};
+  let query: PrefsWithValues;
   let is_single = false;
   if (Array.isArray(prefs)) {
     query = {};
@@ -127,8 +129,14 @@ export async function get_prefs(
   } else {
     throw new Error('get_prefs parameter has unsupported type');
   }
-  const ret_data = await browser.storage.local.get(query);
+  const ret_data = (await browser.storage.local.get(query)) as PrefsWithValues;
   return is_single ? ret_data[prefs as string] : ret_data;
+}
+
+export function send_message<M extends Message>(
+  message: M,
+): Promise<MessageResponse<M>> {
+  return browser.runtime.sendMessage(message) as Promise<MessageResponse<M>>;
 }
 
 export function set_pref(pref: string, value: PrefsType): Promise<void> {
@@ -149,7 +157,6 @@ export function on_prefs_change(
     for (const pref of Object.keys(changes)) {
       // if option has been removed, it means that it's value has been set to default
       if (!Object.prototype.hasOwnProperty.call(changes[pref], 'newValue')) {
-        // eslint-disable-next-line no-param-reassign
         changes[pref].newValue = prefs_keys_with_defaults[pref];
       }
     }
@@ -160,7 +167,9 @@ export function on_prefs_change(
 export async function get_merged_configured_common(
   get_configured_private: () => Promise<ConfiguredPages>,
 ): Promise<ConfiguredPages> {
-  const local_storage_p = browser.storage.local.get({ configured_pages: {} });
+  const local_storage_p = browser.storage.local.get({
+    configured_pages: {},
+  }) as Promise<{ configured_pages: ConfiguredPages }>;
   return {
     ...(await local_storage_p).configured_pages,
     ...(await get_configured_private()),

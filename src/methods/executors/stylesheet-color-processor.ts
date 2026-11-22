@@ -159,7 +159,7 @@ export class StylesheetColorProcessor
     `${var_name}${this.var_name_postfix}fg`;
   readonly rename_var_bg = (var_name: string) =>
     `${var_name}${this.var_name_postfix}bg`;
-  // eslint-disable-next-line max-len
+
   readonly use_webkit_text_stroke = false; // window.CSS.supports('-webkit-text-stroke', '1px red');
   constructor(window: Window, options: AddonOptions) {
     super(window, '[style*="color"], [style*="background"]');
@@ -404,7 +404,6 @@ export class StylesheetColorProcessor
   }
 
   process_bg_part(bg_part: string, selector: string, base_url: string): string {
-    // eslint-disable-next-line no-param-reassign
     bg_part = bg_part.trim();
     if (StylesheetColorProcessor.is_css_var(bg_part)) {
       return StylesheetColorProcessor.process_css_var_usage(
@@ -460,7 +459,6 @@ export class StylesheetColorProcessor
     is_foreground: boolean,
     no_ret_if_fail: boolean,
   ): string | undefined {
-    // eslint-disable-next-line no-param-reassign
     color = color.trim();
     const rgb_color_array = parseCSSColor(color);
     if (rgb_color_array) {
@@ -480,6 +478,29 @@ export class StylesheetColorProcessor
         is_foreground ? this.rename_var_fg : this.rename_var_bg,
         (s) => this.process_color_property(s, is_foreground, false),
       );
+    } else if (color.indexOf('light-dark(') === 0 && color.endsWith(')')) {
+      // Which branch light-dark() resolves to depends on the used color-scheme,
+      // which we cannot see from here. It would be the wrong thing to follow
+      // anyway: the add-on exists to impose its own configuration rather than
+      // defer to the page's or the browser's idea of light and dark. So both
+      // arguments get processed identically and the function is left in place.
+      // Whichever one the browser ends up picking has already been recoloured.
+      return this.process_color_function_arguments(
+        color,
+        'light-dark(',
+        is_foreground,
+        false,
+      );
+    } else if (color.indexOf('color-mix(') === 0 && color.endsWith(')')) {
+      // Recolouring the inputs and letting the browser mix them is not the same
+      // as mixing first and recolouring the result, but it is the approximation
+      // gradients already get, and it keeps the interpolation method intact.
+      return this.process_color_function_arguments(
+        color,
+        'color-mix(',
+        is_foreground,
+        true,
+      );
     }
     if (!no_ret_if_fail) {
       if (color.indexOf('rgba(') === 0 || color.indexOf('rgb(') === 0) {
@@ -492,6 +513,33 @@ export class StylesheetColorProcessor
       }
     }
     return;
+  }
+
+  /**
+   * Recolours the colour arguments of a function while leaving the function
+   * itself in place, so the browser still evaluates it. Arguments may carry
+   * trailing keywords or percentages, which fall through unchanged.
+   *
+   * `skip_first_argument` is for the interpolation method of color-mix(),
+   * which is not a colour.
+   */
+  process_color_function_arguments(
+    color: string,
+    prefix: string,
+    is_foreground: boolean,
+    skip_first_argument: boolean,
+  ): string {
+    const args = brackets_aware_split(color.slice(prefix.length, -1), ',');
+    const processed = args.map((argument, i) =>
+      skip_first_argument && i === 0
+        ? argument.trim()
+        : brackets_aware_split(argument.trim(), ' ')
+            .map((token) =>
+              this.process_color_property(token, is_foreground, false),
+            )
+            .join(' '),
+    );
+    return `${prefix}${processed.join(', ')})`;
   }
 
   process_background_image(
