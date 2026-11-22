@@ -1,5 +1,4 @@
 import { parseCSSColor } from 'csscolorparser-ts';
-import { parse as tldts_parse } from 'tldts';
 import type {
   Runtime,
   ContentScripts,
@@ -26,26 +25,23 @@ import type { PrefsWithValues } from '../common/shared';
 import { methods } from '../methods/methods-with-stylesheets';
 import { relative_luminance, strip_alpha } from '../common/color_utils';
 import { modify_cors, modify_csp, version_lt } from './lib';
+import { smart_generate_urls } from '../common/smart-generate-urls';
 import * as base_style from '../methods/stylesheets/base';
 
 declare const browser: Browser;
 
-// Derive a "site" key from a tab URL, consistent with how configured_pages
-// entries are matched in the content script. For http(s) this is the
-// registrable domain (so all subdomains and paths of the site are covered),
-// falling back to the bare hostname when a registrable domain can't be
-// determined (IP addresses, single-label hosts like "localhost", etc.).
+// Derive a "site" key from a tab URL: the broadest http(s) entry the toolbar
+// pop-up would offer for it, which is the registrable domain (so all
+// subdomains and paths of the site are covered), or the bare hostname when
+// there is none (IP addresses, single-label hosts like "localhost", etc.).
 function get_site_key(url_str: string): string | null {
   try {
     const url_obj = new URL(url_str);
-    if (url_obj.protocol === 'http:' || url_obj.protocol === 'https:') {
-      const parsed = tldts_parse(url_obj.hostname, {
-        detectIp: false,
-        extractHostname: false,
-      });
-      return parsed.domain ?? url_obj.hostname;
+    if (url_obj.protocol !== 'http:' && url_obj.protocol !== 'https:') {
+      return null;
     }
-    return url_obj.hostname || null;
+    const urls = smart_generate_urls(url_str);
+    return urls[urls.length - 1] ?? null;
   } catch (e) {
     console.error(e);
     return null;
