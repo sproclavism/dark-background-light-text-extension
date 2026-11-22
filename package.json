@@ -4,6 +4,7 @@
     "dev": "node tools/dev.mjs",
     "dev:deved": "npm run dev -- --firefox=deved",
     "dev:android": "npm run dev -- --target=firefox-android",
+    "sign": "node tools/sign.mjs",
     "test": "c8 --reporter='../../coverage-relative-json-summary' --reporter=html --reporter=text mocha"
   },
   "engines": {
