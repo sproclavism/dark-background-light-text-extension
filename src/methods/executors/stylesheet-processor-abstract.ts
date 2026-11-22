@@ -1,6 +1,7 @@
 import type { Browser } from 'webextension-polyfill';
 import AwaitLock from 'await-lock';
-import { CallbackID } from '../../common/types';
+import { MessageAction } from '../../common/types';
+import { send_message } from '../../common/shared';
 
 declare const browser: Browser;
 declare const { exportFunction }: typeof import('../../types/exportFunction');
@@ -78,7 +79,6 @@ export abstract class StylesheetProcessorAbstract {
       const shadow_roots = this.shadow_roots;
       const attachShadowReal = Element.prototype.attachShadow;
 
-      // eslint-disable-next-line no-inner-declarations
       function attachShadow(this: Element, init: ShadowRootInit) {
         const root = attachShadowReal.call(this, init);
         shadow_roots.push(new WeakRef(root));
@@ -147,8 +147,8 @@ export abstract class StylesheetProcessorAbstract {
         }
       }
       if (this.prev_inline_override_stylesheet) {
-        browser.runtime.sendMessage({
-          action: CallbackID.REMOVE_CSS,
+        send_message({
+          action: MessageAction.REMOVE_CSS,
           code: this.prev_inline_override_stylesheet,
         });
         this.prev_inline_override_stylesheet = undefined;
@@ -201,8 +201,17 @@ export abstract class StylesheetProcessorAbstract {
       for (const sheet of shadow.styleSheets) {
         this.process_CSSStyleSheet(sheet);
       }
+      // Constructed stylesheets are not in styleSheets. Web component libraries
+      // put component styles here rather than in a <style>, so without this a
+      // component's own rules, :host included, are never seen.
+      for (const sheet of shadow.adoptedStyleSheets) {
+        this.process_CSSStyleSheet(sheet);
+      }
     }
     for (const sheet of this.window.document.styleSheets) {
+      this.process_CSSStyleSheet(sheet);
+    }
+    for (const sheet of this.window.document.adoptedStyleSheets) {
       this.process_CSSStyleSheet(sheet);
     }
     if (!this.all_initial_sheets_have_been_processed) {
@@ -257,7 +266,7 @@ export abstract class StylesheetProcessorAbstract {
         ownerRule.parentStyleSheet ?? stylesheet.parentStyleSheet!,
       ); // #169
     }
-    // eslint-disable-next-line no-useless-return
+
     return;
   }
 
@@ -399,17 +408,15 @@ export abstract class StylesheetProcessorAbstract {
 
     if (!base_url) {
       if (sheet.href && !sheet.href.startsWith('data:')) {
-        // eslint-disable-next-line no-param-reassign
         base_url = new URL(sheet.href, document.documentURI).href;
       } else {
-        // eslint-disable-next-line no-param-reassign
         base_url = document.documentURI;
       }
     }
     try {
       if (sheet.cssRules === null) {
         // access to .cssRules will throw in Firefox
-        // eslint-disable-next-line no-throw-literal
+
         throw { name: 'SecurityError' }; // for chrome
       }
     } catch (e) {
@@ -452,24 +459,32 @@ export abstract class StylesheetProcessorAbstract {
     if (this.stop) {
       return;
     }
-    // eslint-disable-next-line default-case
-    switch (CSSRule_v.type) {
-      case 1: // CSSRule.STYLE_RULE
-        this.process_CSSStyleRule(CSSRule_v as CSSStyleRule, base_url);
-        break;
-      case 3: // CSSRule.IMPORT_RULE
-        // this.process_CSSImportRule(CSSRule_v);
-        this.process_CSSStyleSheet(
-          (CSSRule_v as CSSImportRule).styleSheet,
-          base_url,
-        );
-        break;
-      case 4: // CSSRule.MEDIA_RULE
-        this.process_CSSGroupingRule(CSSRule_v as CSSMediaRule, base_url);
-        break;
-      case 12: // CSSRule.SUPPORTS_RULE
-        this.process_CSSGroupingRule(CSSRule_v as CSSSupportsRule, base_url);
-        break;
+
+    // CSSRule.type is frozen: everything standardised after it was defined
+    // reports 0, which is every modern grouping at-rule — @layer, @container,
+    // @scope, @starting-style. Dispatching on what a rule *has* instead picks
+    // those up, and keeps working for whatever gets added next.
+    if (CSSRule_v.type === 7 /* CSSRule.KEYFRAMES_RULE */) {
+      // its children are keyframes rather than style rules; left alone as before
+      return;
+    }
+
+    const imported = (CSSRule_v as CSSImportRule).styleSheet;
+    if (imported !== undefined) {
+      // null when the imported sheet failed to load or is still pending
+      if (imported) {
+        this.process_CSSStyleSheet(imported, base_url);
+      }
+      return;
+    }
+
+    // a style rule carries declarations, and since css nesting also carries
+    // child rules, so both branches below can apply to the same rule
+    if (typeof (CSSRule_v as CSSStyleRule).selectorText === 'string') {
+      this.process_CSSStyleRule(CSSRule_v as CSSStyleRule, base_url);
+    }
+    if ((CSSRule_v as CSSGroupingRule).cssRules) {
+      this.process_CSSGroupingRule(CSSRule_v as CSSGroupingRule, base_url);
     }
   }
 
@@ -489,13 +504,13 @@ export abstract class StylesheetProcessorAbstract {
     await this.inline_override_lock.acquireAsync();
     try {
       const css = this.inline_overrides_style.join('\n');
-      await browser.runtime.sendMessage({
-        action: CallbackID.INSERT_CSS,
+      await send_message({
+        action: MessageAction.INSERT_CSS,
         code: css,
       });
       if (this.prev_inline_override_stylesheet) {
-        await browser.runtime.sendMessage({
-          action: CallbackID.REMOVE_CSS,
+        await send_message({
+          action: MessageAction.REMOVE_CSS,
           code: this.prev_inline_override_stylesheet,
         });
       }

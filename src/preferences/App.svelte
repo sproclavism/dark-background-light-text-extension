@@ -127,7 +127,7 @@
         {:else if pref.type === 'color'}
           <ColorInput
             value={pref.value}
-            default={pref.value}
+            default_value={pref.value}
             on:change={(e) => set_pref(pref.name, e.detail.value)}
             class="col-xs-12 col-sm-8 col-md-6"
           />
@@ -148,8 +148,8 @@
       <div class="row"><div class="col-xs-12"><h2>Shortcuts</h2></div></div>
       <div>
         In order to configure shortcuts, go to about:addons (Menu -&gt;
-        Add-ons), press on the cogwheel icon, then choose "Manage Extension
-        Shortcuts"
+        Extensions and Themes), press on the cogwheel icon, then choose "Manage
+        Extension Shortcuts"
       </div>
       <a
         href="https://support.mozilla.org/kb/manage-extension-shortcuts-firefox"
@@ -181,8 +181,8 @@
     <div class="col-xs-12 col-sm-4 col-md-2 col-lg-2">
       <button
         on:click={add_page}
-        disabled={!new_page_url.trim() ||
-          new_page_url.trim() in configured_pages}
+        disabled={!new_page_url.trim()
+          || new_page_url.trim() in configured_pages}
         class="btn btn-default full-width">Add</button
       >
     </div>

@@ -80,11 +80,9 @@ export function generate_urls(
     const pathname_parts = url_obj.pathname
       .split('/')
       .filter((p) => p.length > 0);
-    const prepend_protocol_and_or_host =
-      // eslint-disable-next-line no-nested-ternary
-      url_obj.host
-        ? `${is_http ? '' : protocol_real}${url_obj.host}/`
-        : protocol_real.endsWith('//')
+    const prepend_protocol_and_or_host = url_obj.host
+      ? `${is_http ? '' : protocol_real}${url_obj.host}/`
+      : protocol_real.endsWith('//')
         ? `${protocol_real}/`
         : protocol_real;
     for (let i = pathname_parts.length - 1; i >= 0; i--) {
